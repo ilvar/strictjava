@@ -11,12 +11,6 @@ import pw.rkd.strictjava.model.Report;
 import pw.rkd.strictjava.model.StrictDiagnostic;
 
 public final class FixLoop {
-    private static final List<String> FIXABLE_CHECKS = List.of(
-            "ReturnValueIgnored",
-            "FutureReturnValueIgnored",
-            "MustBeClosedChecker",
-            "StreamResourceLeak");
-
     private final Path project;
     private final String classpath;
     private final String analyzerPath;
@@ -45,7 +39,7 @@ public final class FixLoop {
 
         while (passes < maxPasses) {
             boolean applied = false;
-            for (String checkName : FIXABLE_CHECKS) {
+            for (String checkName : fixableChecks()) {
                 String publicCode = "errorprone::" + checkName;
                 if (count(report, publicCode) == 0) {
                     continue;
@@ -118,6 +112,14 @@ public final class FixLoop {
                 List.copyOf(changedFiles),
                 appliedChecks,
                 report.ok() ? null : "maximum fix passes reached");
+    }
+
+    private List<String> fixableChecks() {
+        return List.of(
+                "ReturnValueIgnored",
+                "FutureReturnValueIgnored",
+                "MustBeClosedChecker",
+                "StreamResourceLeak");
     }
 
     private long count(Report report, String code) {
