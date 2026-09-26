@@ -87,6 +87,7 @@ codes = [item.get("code") for item in report["diagnostics"]]
 assert codes == [
     "strictjava::capability_boundary",
     "strictjava::capability_boundary",
+    "strictjava::capability_boundary",
     "strictjava::no_reflection",
 ], codes
 PY

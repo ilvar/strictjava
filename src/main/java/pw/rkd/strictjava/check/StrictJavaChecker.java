@@ -7,6 +7,7 @@ import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.ImportTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.SwitchExpressionTree;
 import com.sun.source.tree.SwitchTree;
 import com.sun.source.tree.Tree;
@@ -280,6 +281,24 @@ public final class StrictJavaChecker {
         }
 
         @Override
+        public Void visitNewClass(NewClassTree node, Void unused) {
+            Element element = trees.getElement(getCurrentPath());
+            if (element instanceof ExecutableElement executable) {
+                Element enclosing = executable.getEnclosingElement();
+                String owner = enclosing instanceof TypeElement type
+                        ? type.getQualifiedName().toString()
+                        : "";
+                if (isCapabilityConstructor(owner) && !capabilityBoundary) {
+                    add(
+                            "strictjava::capability_boundary",
+                            "filesystem and network effects must live in a capability source file",
+                            node);
+                }
+            }
+            return super.visitNewClass(node, unused);
+        }
+
+        @Override
         public Void visitMethodInvocation(MethodInvocationTree node, Void unused) {
             TreePath methodPath = new TreePath(getCurrentPath(), node.getMethodSelect());
             Element element = trees.getElement(methodPath);
@@ -368,6 +387,17 @@ public final class StrictJavaChecker {
                     .anyMatch(line -> line.equals("// strictjava: capability"));
         }
 
+        private boolean isCapabilityConstructor(String owner) {
+            return owner.equals("java.io.FileInputStream")
+                    || owner.equals("java.io.FileOutputStream")
+                    || owner.equals("java.io.FileReader")
+                    || owner.equals("java.io.FileWriter")
+                    || owner.equals("java.io.RandomAccessFile")
+                    || owner.equals("java.net.Socket")
+                    || owner.equals("java.net.ServerSocket")
+                    || owner.equals("java.net.DatagramSocket");
+        }
+
         private boolean isCapabilityEffect(String owner, String method) {
             if (owner.equals("java.nio.file.Files")) {
                 return true;
@@ -387,7 +417,9 @@ public final class StrictJavaChecker {
             if (owner.startsWith("java.net.")) {
                 return method.equals("connect")
                         || method.equals("getInputStream")
-                        || method.equals("getOutputStream");
+                        || method.equals("getOutputStream")
+                        || method.equals("openConnection")
+                        || method.equals("openStream");
             }
             return false;
         }
