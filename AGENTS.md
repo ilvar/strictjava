@@ -19,7 +19,7 @@ Do not introduce a custom parser, javac fork, new language syntax, or a large st
 Treat stdout JSON as the public API.
 
 - output exactly one JSON document for operational commands;
-- use `source = "javac"` or `source = "strictjava"` for current diagnostics;
+- use `source = "javac"`, `source = "strictjava"`, `source = "errorprone"`, or `source = "nullaway"`;
 - use stable `strictjava::` codes for policy diagnostics;
 - include exact source spans when available;
 - sort deterministically by `(file, line, column, code, message)`;
@@ -27,7 +27,7 @@ Treat stdout JSON as the public API.
 - exit `0` only when no error diagnostics remain;
 - never parse or depend on javac's human rendering when the compiler API exposes structured data.
 
-Future Error Prone/NullAway integration must normalize into this contract rather than changing it casually.
+Error Prone/NullAway diagnostics must normalize into this contract. Their public codes are `errorprone::<CheckName>` and `nullaway::<CheckName>`; do not expose unstable javac `error.prone` wrapper codes as the public identity.
 
 ## Rule policy
 
@@ -36,6 +36,10 @@ Prefer compiler/type information over text matching. Reuse JDK APIs and establis
 A new rule must remove meaningful ambiguity, unsafe escape hatches, hidden failure handling, or architecture leakage. Do not add subjective formatting rules.
 
 Every stable rule needs a deliberately broken fixture and an acceptance assertion for its code and ordering.
+
+The M1 analyzer allowlist is intentionally narrow: NullAway, RequireExplicitNullMarking, JSpecifyUnrecognizedAnnotationLocation, ReturnValueIgnored, FutureReturnValueIgnored, MustBeClosedChecker, and StreamResourceLeak. Do not enable the full Error Prone default catalogue without an explicit profile decision and fixtures.
+
+Pinned M1 analyzer versions are Error Prone 2.50.0, NullAway 0.14.2, and JSpecify 1.0.0. Keep `build.gradle.kts`, help, README, tests, and CI coherent when upgrading them.
 
 Capability effects use the exact `// strictjava: capability` source-file marker within the first 20 lines. Keep capability files narrow. Do not use the marker as a general lint suppression mechanism.
 
@@ -58,4 +62,4 @@ Current authoritative validation:
 ./scripts/test.sh
 ```
 
-The project target is JDK 25 LTS. Keep the Gradle toolchain and CI Java version synchronized.
+The project target is JDK 25 LTS. Full analyzer checks require JDK 25; `--core-only` is bootstrap/debug mode. Keep the Gradle toolchain, runtime check, and CI Java version synchronized.

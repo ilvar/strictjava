@@ -5,7 +5,7 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 "$ROOT/scripts/build.sh" >/dev/null
 JAR="$ROOT/build/strictjava.jar"
 
-clean_json=$(java -jar "$JAR" check "$ROOT/fixtures/clean")
+clean_json=$(java -jar "$JAR" check --core-only "$ROOT/fixtures/clean")
 python3 - "$clean_json" <<'PY'
 import json, sys
 report = json.loads(sys.argv[1])
@@ -15,7 +15,7 @@ assert report["diagnostics"] == [], report
 PY
 
 set +e
-bad_json=$(java -jar "$JAR" check "$ROOT/fixtures/violations")
+bad_json=$(java -jar "$JAR" check --core-only "$ROOT/fixtures/violations")
 bad_status=$?
 set -e
 [[ "$bad_status" -eq 1 ]]
@@ -39,7 +39,7 @@ assert codes == expected, (codes, expected)
 PY
 
 set +e
-warning_json=$(java -jar "$JAR" check "$ROOT/fixtures/javac-warning")
+warning_json=$(java -jar "$JAR" check --core-only "$ROOT/fixtures/javac-warning")
 warning_status=$?
 set -e
 [[ "$warning_status" -eq 1 ]]
@@ -52,7 +52,7 @@ assert all(item["level"] == "error" for item in report["diagnostics"]), report
 PY
 
 set +e
-compiler_json=$(java -jar "$JAR" check "$ROOT/fixtures/compiler-error")
+compiler_json=$(java -jar "$JAR" check --core-only "$ROOT/fixtures/compiler-error")
 compiler_status=$?
 set -e
 [[ "$compiler_status" -eq 1 ]]
@@ -64,7 +64,7 @@ assert any(item["source"] == "javac" and item["level"] == "error" for item in re
 PY
 
 set +e
-operational_json=$(java -jar "$JAR" check "$ROOT/fixtures/does-not-exist")
+operational_json=$(java -jar "$JAR" check --core-only "$ROOT/fixtures/does-not-exist")
 operational_status=$?
 set -e
 [[ "$operational_status" -eq 2 ]]
@@ -76,7 +76,7 @@ assert "operational_error" in report, report
 PY
 
 set +e
-capability_json=$(java -jar "$JAR" check "$ROOT/fixtures/capabilities-bad")
+capability_json=$(java -jar "$JAR" check --core-only "$ROOT/fixtures/capabilities-bad")
 capability_status=$?
 set -e
 [[ "$capability_status" -eq 1 ]]
@@ -92,7 +92,7 @@ assert codes == [
 ], codes
 PY
 
-capability_good_json=$(java -jar "$JAR" check "$ROOT/fixtures/capabilities-good")
+capability_good_json=$(java -jar "$JAR" check --core-only "$ROOT/fixtures/capabilities-good")
 python3 - "$capability_good_json" <<'PY'
 import json, sys
 report = json.loads(sys.argv[1])
@@ -101,7 +101,7 @@ assert report["diagnostics"] == [], report
 PY
 
 set +e
-native_json=$(java -jar "$JAR" check "$ROOT/fixtures/native-code")
+native_json=$(java -jar "$JAR" check --core-only "$ROOT/fixtures/native-code")
 native_status=$?
 set -e
 [[ "$native_status" -eq 1 ]]
@@ -120,7 +120,7 @@ assert codes == [
 PY
 
 set +e
-interface_json=$(java -jar "$JAR" check "$ROOT/fixtures/mutable-interface")
+interface_json=$(java -jar "$JAR" check --core-only "$ROOT/fixtures/mutable-interface")
 interface_status=$?
 set -e
 [[ "$interface_status" -eq 1 ]]
@@ -131,7 +131,7 @@ codes = [item.get("code") for item in report["diagnostics"]]
 assert codes == ["strictjava::no_mutable_global"], codes
 PY
 
-main_good_json=$(java -jar "$JAR" check "$ROOT/fixtures/main-boundary-good")
+main_good_json=$(java -jar "$JAR" check --core-only "$ROOT/fixtures/main-boundary-good")
 python3 - "$main_good_json" <<'PY'
 import json, sys
 report = json.loads(sys.argv[1])
@@ -139,7 +139,7 @@ assert report["ok"] is True, report
 PY
 
 set +e
-main_bad_json=$(java -jar "$JAR" check "$ROOT/fixtures/main-boundary-bad")
+main_bad_json=$(java -jar "$JAR" check --core-only "$ROOT/fixtures/main-boundary-bad")
 main_bad_status=$?
 set -e
 [[ "$main_bad_status" -eq 1 ]]
@@ -158,7 +158,7 @@ javac -d "$classpath_classes" "$ROOT/fixtures/classpath-lib/src/main/java/exampl
 jar --create --file "$classpath_jar" -C "$classpath_classes" .
 
 set +e
-classpath_missing_json=$(java -jar "$JAR" check "$ROOT/fixtures/classpath-app")
+classpath_missing_json=$(java -jar "$JAR" check --core-only "$ROOT/fixtures/classpath-app")
 classpath_missing_status=$?
 set -e
 [[ "$classpath_missing_status" -eq 1 ]]
@@ -168,7 +168,7 @@ report = json.loads(sys.argv[1])
 assert any(item["source"] == "javac" for item in report["diagnostics"]), report
 PY
 
-classpath_json=$(java -jar "$JAR" check --classpath "$classpath_jar" "$ROOT/fixtures/classpath-app")
+classpath_json=$(java -jar "$JAR" check --core-only --classpath "$classpath_jar" "$ROOT/fixtures/classpath-app")
 python3 - "$classpath_json" <<'PY'
 import json, sys
 report = json.loads(sys.argv[1])
@@ -177,11 +177,11 @@ assert report["diagnostics"] == [], report
 PY
 
 # The same input must produce byte-identical JSON.
-again=$(java -jar "$JAR" check "$ROOT/fixtures/violations" || true)
+again=$(java -jar "$JAR" check --core-only "$ROOT/fixtures/violations" || true)
 [[ "$bad_json" == "$again" ]]
 
 # Dogfood the checker on its own production sources.
-self_json=$(java -jar "$JAR" check "$ROOT")
+self_json=$(java -jar "$JAR" check --core-only "$ROOT")
 python3 - "$self_json" <<'PY'
 import json, sys
 report = json.loads(sys.argv[1])

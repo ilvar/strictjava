@@ -50,14 +50,20 @@ import pw.rkd.strictjava.model.StrictDiagnostic;
 public final class StrictJavaChecker {
     private final Path project;
     private final String classpath;
+    private final String analyzerPath;
 
     public StrictJavaChecker(Path project) {
-        this(project, null);
+        this(project, null, null);
     }
 
     public StrictJavaChecker(Path project, String classpath) {
+        this(project, classpath, null);
+    }
+
+    public StrictJavaChecker(Path project, String classpath, String analyzerPath) {
         this.project = project.toAbsolutePath().normalize();
         this.classpath = classpath;
+        this.analyzerPath = analyzerPath;
     }
 
     public Report check() throws IOException {
@@ -110,6 +116,16 @@ public final class StrictJavaChecker {
             Trees trees = Trees.instance(task);
             for (CompilationUnitTree unit : parsed) {
                 new StrictScanner(trees, unit, sourceText, diagnostics).scan(unit, null);
+            }
+
+            boolean compilerClean = diagnostics.stream().noneMatch(diagnostic -> diagnostic.source().equals("javac"));
+            if (compilerClean && analyzerPath != null && !analyzerPath.isBlank()) {
+                try {
+                    diagnostics.addAll(new AnalyzerRunner(project, classpath, analyzerPath, sourceText).run(sources));
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("analyzer invocation interrupted", exception);
+                }
             }
         } finally {
             deleteRecursively(output);
