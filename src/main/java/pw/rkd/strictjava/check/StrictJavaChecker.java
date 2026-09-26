@@ -1,3 +1,4 @@
+// strictjava: capability
 package pw.rkd.strictjava.check;
 
 import com.sun.source.tree.AnnotationTree;
@@ -45,9 +46,15 @@ import pw.rkd.strictjava.model.StrictDiagnostic;
 
 public final class StrictJavaChecker {
     private final Path project;
+    private final String classpath;
 
     public StrictJavaChecker(Path project) {
+        this(project, null);
+    }
+
+    public StrictJavaChecker(Path project, String classpath) {
         this.project = project.toAbsolutePath().normalize();
+        this.classpath = classpath;
     }
 
     public Report check() throws IOException {
@@ -74,11 +81,15 @@ public final class StrictJavaChecker {
         try (StandardJavaFileManager fileManager =
                 compiler.getStandardFileManager(compilerDiagnostics, Locale.ROOT, StandardCharsets.UTF_8)) {
             Iterable<? extends JavaFileObject> units = fileManager.getJavaFileObjectsFromPaths(sources);
-            List<String> options = List.of(
+            List<String> options = new ArrayList<>(List.of(
                     "-proc:none",
                     "-Xlint:all,-processing,-serial",
                     "-d",
-                    output.toString());
+                    output.toString()));
+            if (classpath != null && !classpath.isBlank()) {
+                options.add("-classpath");
+                options.add(classpath);
+            }
             JavacTask task = (JavacTask) compiler.getTask(
                     null, fileManager, compilerDiagnostics, options, null, units);
 
@@ -218,6 +229,7 @@ public final class StrictJavaChecker {
         private final String text;
         private final List<StrictDiagnostic> diagnostics;
         private final Path file;
+        private final boolean capabilityBoundary;
 
         StrictScanner(
                 Trees trees,
@@ -229,6 +241,7 @@ public final class StrictJavaChecker {
             this.file = Path.of(unit.getSourceFile().toUri()).toAbsolutePath().normalize();
             this.text = sourceText.getOrDefault(file, "");
             this.diagnostics = diagnostics;
+            this.capabilityBoundary = hasCapabilityMarker(text);
         }
 
         @Override
@@ -286,8 +299,14 @@ public final class StrictJavaChecker {
                 if (owner.equals("java.lang.Runtime") && (method.equals("halt") || method.equals("exit"))) {
                     add("strictjava::no_runtime_halt", "Runtime.exit()/halt() are not allowed", node);
                 }
-                if (isReflection(owner, method)) {
-                    add("strictjava::no_reflection", "reflection is not allowed outside a future explicit capability boundary", node);
+                if (isReflection(owner, method) && !capabilityBoundary) {
+                    add("strictjava::no_reflection", "reflection is allowed only inside an explicit capability boundary", node);
+                }
+                if (isCapabilityEffect(owner, method) && !capabilityBoundary) {
+                    add(
+                            "strictjava::capability_boundary",
+                            "filesystem, process, environment, and network effects must live in a capability source file",
+                            node);
                 }
             }
             return super.visitMethodInvocation(node, unused);
@@ -338,6 +357,37 @@ public final class StrictJavaChecker {
                             && method.getModifiers().getFlags().contains(Modifier.STATIC);
                 }
                 path = path.getParentPath();
+            }
+            return false;
+        }
+
+        private boolean hasCapabilityMarker(String source) {
+            return source.lines()
+                    .limit(20)
+                    .map(String::trim)
+                    .anyMatch(line -> line.equals("// strictjava: capability"));
+        }
+
+        private boolean isCapabilityEffect(String owner, String method) {
+            if (owner.equals("java.nio.file.Files")) {
+                return true;
+            }
+            if (owner.equals("java.lang.System")) {
+                return method.equals("getenv") || method.equals("getProperty") || method.equals("getProperties");
+            }
+            if (owner.equals("java.lang.Runtime")) {
+                return method.equals("exec");
+            }
+            if (owner.equals("java.lang.ProcessBuilder")) {
+                return method.equals("start") || method.equals("startPipeline");
+            }
+            if (owner.equals("java.net.http.HttpClient")) {
+                return method.equals("send") || method.equals("sendAsync");
+            }
+            if (owner.startsWith("java.net.")) {
+                return method.equals("connect")
+                        || method.equals("getInputStream")
+                        || method.equals("getOutputStream");
             }
             return false;
         }

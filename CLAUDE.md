@@ -37,6 +37,8 @@ A new rule must remove meaningful ambiguity, unsafe escape hatches, hidden failu
 
 Every stable rule needs a deliberately broken fixture and an acceptance assertion for its code and ordering.
 
+Capability effects use the exact `// strictjava: capability` source-file marker within the first 20 lines. Keep capability files narrow. Do not use the marker as a general lint suppression mechanism.
+
 ## Fix policy
 
 M2 fixes must be more conservative than IDE quick-fixes:

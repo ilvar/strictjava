@@ -75,6 +75,56 @@ assert report["ok"] is False, report
 assert "operational_error" in report, report
 PY
 
+set +e
+capability_json=$(java -jar "$JAR" check "$ROOT/fixtures/capabilities-bad")
+capability_status=$?
+set -e
+[[ "$capability_status" -eq 1 ]]
+python3 - "$capability_json" <<'PY'
+import json, sys
+report = json.loads(sys.argv[1])
+codes = [item.get("code") for item in report["diagnostics"]]
+assert codes == [
+    "strictjava::capability_boundary",
+    "strictjava::capability_boundary",
+    "strictjava::no_reflection",
+], codes
+PY
+
+capability_good_json=$(java -jar "$JAR" check "$ROOT/fixtures/capabilities-good")
+python3 - "$capability_good_json" <<'PY'
+import json, sys
+report = json.loads(sys.argv[1])
+assert report["ok"] is True, report
+assert report["diagnostics"] == [], report
+PY
+
+classpath_classes="$ROOT/build/test-classpath/classes"
+classpath_jar="$ROOT/build/test-classpath/examplelib.jar"
+rm -rf "$ROOT/build/test-classpath"
+mkdir -p "$classpath_classes"
+javac -d "$classpath_classes" "$ROOT/fixtures/classpath-lib/src/main/java/examplelib/Greeting.java"
+jar --create --file "$classpath_jar" -C "$classpath_classes" .
+
+set +e
+classpath_missing_json=$(java -jar "$JAR" check "$ROOT/fixtures/classpath-app")
+classpath_missing_status=$?
+set -e
+[[ "$classpath_missing_status" -eq 1 ]]
+python3 - "$classpath_missing_json" <<'PY'
+import json, sys
+report = json.loads(sys.argv[1])
+assert any(item["source"] == "javac" for item in report["diagnostics"]), report
+PY
+
+classpath_json=$(java -jar "$JAR" check --classpath "$classpath_jar" "$ROOT/fixtures/classpath-app")
+python3 - "$classpath_json" <<'PY'
+import json, sys
+report = json.loads(sys.argv[1])
+assert report["ok"] is True, report
+assert report["diagnostics"] == [], report
+PY
+
 # The same input must produce byte-identical JSON.
 again=$(java -jar "$JAR" check "$ROOT/fixtures/violations" || true)
 [[ "$bad_json" == "$again" ]]

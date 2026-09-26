@@ -24,6 +24,14 @@ Check a project:
 java -jar build/strictjava.jar check path/to/project
 ```
 
+For projects with external dependencies, pass the compile classpath explicitly:
+
+```bash
+java -jar build/strictjava.jar check --classpath "lib/*:build/deps/*" path/to/project
+```
+
+`--class-path` is accepted as an alias. The value uses the platform classpath separator.
+
 A bare path is equivalent to `check`:
 
 ```bash
@@ -76,10 +84,33 @@ Diagnostics are deterministically ordered by `(file, line, column, code, message
 | `strictjava::no_optional_get` | `Optional.get()` | explicit empty-case handling |
 | `strictjava::no_system_exit` | `System.exit()` outside `main` | return/throw to the top-level boundary |
 | `strictjava::no_runtime_halt` | `Runtime.exit()` / `Runtime.halt()` | ordinary return/exception control flow |
-| `strictjava::no_reflection` | selected reflection APIs | ordinary typed APIs and a future explicit capability boundary |
+| `strictjava::no_reflection` | selected reflection APIs outside a capability source file | ordinary typed APIs or an explicit capability boundary |
+| `strictjava::capability_boundary` | filesystem/process/environment/network effects in ordinary source files | isolate effects in a marked capability source file |
 | `strictjava::no_catchall_switch` | `default` on enum/sealed switches | enumerate all variants |
 
 The rules are intentionally few. `strictjava` is not intended to become a large style-guide checker.
+
+
+### Capability source files
+
+Effects that touch the filesystem, process execution, environment/system properties, or selected network APIs must be isolated in an explicitly marked source file:
+
+```java
+// strictjava: capability
+package example.io;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+final class ConfigFile {
+    static String load(Path path) throws IOException {
+        return Files.readString(path);
+    }
+}
+```
+
+The exact marker must appear within the first 20 source lines. Reflection is also permitted only inside such a boundary. `System.exit()` and `Runtime.exit()`/`halt()` are not capability exemptions: their dedicated rules still apply.
 
 ## Why compiler APIs first
 
@@ -95,7 +126,7 @@ Run the dependency-free acceptance suite:
 ./scripts/test.sh
 ```
 
-The suite checks a clean fixture, a real javac type error, the exact ordered rule codes for a multi-violation fixture, byte-identical output across repeated checks, and a clean dogfood pass over strictjava itself.
+The suite checks clean and broken compiler fixtures, exact ordered rule codes for a multi-violation fixture, capability-boundary enforcement/exemption, explicit dependency classpaths, byte-identical output across repeated checks, and a clean dogfood pass over strictjava itself.
 
 A Gradle 9.8 build definition is included for IDE/build-tool use, but a Gradle wrapper is intentionally deferred to M3 together with generated-project support. The authoritative CI path for the current milestones is `scripts/test.sh` on JDK 25.
 
@@ -110,7 +141,7 @@ A Gradle 9.8 build definition is included for IDE/build-tool use, but a Gradle w
   - first source rules implemented
   - add JSpecify + NullAway
   - add Error Prone checks where they are stronger than local AST rules
-  - capability boundaries for filesystem/network/process/environment/reflection
+  - capability boundaries for filesystem/network/process/environment/reflection — implemented for core JDK APIs
 - **M2 — conservative fix loop:** planned
   - only allowlisted, tool-supplied fixes
   - deterministic non-overlapping edits

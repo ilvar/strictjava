@@ -1,3 +1,4 @@
+// strictjava: capability
 package pw.rkd.strictjava.check;
 
 import java.io.IOException;

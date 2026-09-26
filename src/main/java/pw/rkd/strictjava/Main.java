@@ -8,12 +8,13 @@ public final class Main {
             strictjava — deterministic strict Java feedback loop for coding agents
 
             USAGE
-              strictjava check [PATH]
+              strictjava check [--classpath PATHS] [PATH]
               strictjava [PATH]
               strictjava --help
 
             COMMANDS
               check [PATH]   Check Java sources below PATH. PATH defaults to '.'.
+              --classpath    Pass a platform-separated dependency classpath to javac.
               --help         Print this help text.
 
             OUTPUT
@@ -28,7 +29,9 @@ public final class Main {
               strictjava::no_mutable_global
               strictjava::no_optional_get
               strictjava::no_system_exit
-              strictjava::no_runtime_halt\n              strictjava::no_reflection
+              strictjava::no_runtime_halt
+              strictjava::no_reflection
+              strictjava::capability_boundary
               strictjava::no_catchall_switch
 
               javac warnings are promoted to errors. Compiler diagnostics and
@@ -52,20 +55,29 @@ public final class Main {
             }
 
             Path path;
+            String classpath = null;
             if (args.length == 0) {
                 path = Path.of(".");
             } else if (args[0].equals("check")) {
-                if (args.length > 2) {
+                int index = 1;
+                if (index < args.length && (args[index].equals("--classpath") || args[index].equals("--class-path"))) {
+                    if (index + 1 >= args.length) {
+                        return invocationError("--classpath requires PATHS");
+                    }
+                    classpath = args[index + 1];
+                    index += 2;
+                }
+                if (args.length - index > 1) {
                     return invocationError("check accepts at most one PATH");
                 }
-                path = args.length == 2 ? Path.of(args[1]) : Path.of(".");
+                path = index < args.length ? Path.of(args[index]) : Path.of(".");
             } else if (args.length == 1 && !args[0].startsWith("-")) {
                 path = Path.of(args[0]);
             } else {
                 return invocationError("invalid invocation; run strictjava --help");
             }
 
-            var report = new StrictJavaChecker(path).check();
+            var report = new StrictJavaChecker(path, classpath).check();
             System.out.println(Json.report(report));
             return report.ok() ? 0 : 1;
         } catch (Exception exception) {
