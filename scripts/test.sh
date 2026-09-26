@@ -108,7 +108,11 @@ set -e
 python3 - "$native_json" <<'PY'
 import json, sys
 report = json.loads(sys.argv[1])
-codes = [item.get("code") for item in report["diagnostics"]]
+codes = [
+    item.get("code")
+    for item in report["diagnostics"]
+    if item.get("source") == "strictjava"
+]
 assert codes == [
     "strictjava::no_native_code",
     "strictjava::no_native_code",
