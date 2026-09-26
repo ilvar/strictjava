@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "pw.rkd"
-version = "0.3.0"
+version = "0.4.0"
 
 repositories {
     mavenCentral()
@@ -20,15 +20,15 @@ application {
     mainClass = "pw.rkd.strictjava.Main"
 }
 
-val analyzers by configurations.creating {
+val analyzers = configurations.create("analyzers") {
     isCanBeConsumed = false
     isCanBeResolved = true
 }
 
 dependencies {
-    analyzers("com.google.errorprone:error_prone_core:2.50.0")
-    analyzers("com.uber.nullaway:nullaway:0.14.2")
-    analyzers("org.jspecify:jspecify:1.0.0")
+    add(analyzers.name, "com.google.errorprone:error_prone_core:2.50.0")
+    add(analyzers.name, "com.uber.nullaway:nullaway:0.14.2")
+    add(analyzers.name, "org.jspecify:jspecify:1.0.0")
 }
 
 tasks.register<Sync>("prepareAnalyzers") {

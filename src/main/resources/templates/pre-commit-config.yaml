@@ -1,0 +1,23 @@
+repos:
+  - repo: local
+    hooks:
+      - id: gradle-format-check
+        name: Gradle format check
+        entry: ./gradlew --no-daemon formatCheck
+        language: system
+        pass_filenames: false
+        files: \.java$
+
+      - id: gradle-test
+        name: Gradle tests
+        entry: ./gradlew --no-daemon test
+        language: system
+        pass_filenames: false
+        files: ^(src/|build\.gradle\.kts$|settings\.gradle\.kts$|gradle\.lockfile$|gradle/)
+
+      - id: strictjava-check
+        name: strictjava check
+        entry: bash -c './scripts/strictjava.sh check --classpath "$(./gradlew -q strictjavaClasspath)" .'
+        language: system
+        pass_filenames: false
+        files: ^(src/|build\.gradle\.kts$|settings\.gradle\.kts$|gradle\.lockfile$|gradle/)

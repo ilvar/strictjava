@@ -10,6 +10,9 @@ import java.util.Comparator;
 import java.util.List;
 import pw.rkd.strictjava.check.FixLoop;
 import pw.rkd.strictjava.check.StrictJavaChecker;
+import pw.rkd.strictjava.model.Report;
+import pw.rkd.strictjava.project.ProjectGenerator;
+import pw.rkd.strictjava.skills.SkillInstaller;
 
 public final class Main {
     private static final String HELP = """
@@ -18,6 +21,8 @@ public final class Main {
             USAGE
               strictjava check [OPTIONS] [PATH]
               strictjava fix [OPTIONS] [PATH]
+              strictjava new <name>
+              strictjava install-skills
               strictjava [PATH]
               strictjava --help
 
@@ -27,6 +32,15 @@ public final class Main {
               --analyzer-path PATHS  Override the Error Prone / NullAway processor path.
               --core-only            Run javac + strictjava rules without external analyzers.
               --max-passes N         Maximum successful fix passes (fix only; default 8).
+
+            PROJECTS
+              new <name> creates a deterministic Java 25 Gradle project with the official
+              Gradle 9.8.0 wrapper, strict dependency locks/verification, formatting, tests,
+              Docker packaging, reusable CI, pre-commit, and agent guidance.
+
+            SKILLS
+              install-skills installs the embedded strictjava skill for detected Codex and
+              Claude Code installations without overwriting modified copies.
 
             TOOLCHAIN
               Full M1/M2 operations require JDK 25. --core-only is available for check
@@ -55,7 +69,7 @@ public final class Main {
               that reduce diagnostics without introducing new diagnostic codes are committed.
 
             OUTPUT
-              check/fix write exactly one JSON document to stdout and exit:
+              Operational commands write exactly one JSON document to stdout. check/fix exit:
                 0  no diagnostics remain
                 1  diagnostics remain or fixing is blocked/limited
                 2  invocation or operational failure
@@ -92,6 +106,13 @@ public final class Main {
                 return 0;
             }
 
+            if (args.length > 0 && args[0].equals("new")) {
+                return runNew(args);
+            }
+            if (args.length > 0 && args[0].equals("install-skills")) {
+                return runInstallSkills(args);
+            }
+
             Invocation invocation = parse(args);
             if (!invocation.coreOnly() && Runtime.version().feature() != 25) {
                 return invocationError("full strictjava checks require JDK 25; use --core-only only for bootstrap/debugging");
@@ -122,6 +143,39 @@ public final class Main {
                     : exception.getMessage()));
             return 2;
         }
+    }
+
+    private static int runNew(String[] args) throws Exception {
+        if (args.length == 2 && (args[1].equals("--help") || args[1].equals("-h"))) {
+            System.out.print(HELP);
+            return 0;
+        }
+        if (args.length != 2) {
+            return invocationError("new requires exactly one project name");
+        }
+        Path created = ProjectGenerator.create(Path.of("."), args[1]);
+        System.err.println("created project: " + created);
+        System.out.println(Json.report(cleanReport()));
+        return 0;
+    }
+
+    private static int runInstallSkills(String[] args) throws Exception {
+        if (args.length == 2 && (args[1].equals("--help") || args[1].equals("-h"))) {
+            System.out.print(HELP);
+            return 0;
+        }
+        if (args.length != 1) {
+            return invocationError("install-skills does not accept arguments");
+        }
+        for (String message : SkillInstaller.installDetected()) {
+            System.err.println(message);
+        }
+        System.out.println(Json.report(cleanReport()));
+        return 0;
+    }
+
+    private static Report cleanReport() {
+        return new Report(List.of());
     }
 
     private static Invocation parse(String[] args) {

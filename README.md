@@ -6,7 +6,7 @@ It is not a new language, parser, compiler fork, or standard library. It uses th
 
 ## Status
 
-Early implementation. **M0, M1, and M2 are implemented.** The core checker remains dependency-free; the full profile runs a pinned external analyzer bundle containing Error Prone, NullAway, and JSpecify behind the same deterministic JSON contract. M2 adds a conservative tool-supplied fix loop. Project generation and agent-skill installation remain roadmap work.
+Early implementation. **M0 through M3 are implemented.** The core checker remains dependency-free; the full profile runs a pinned external analyzer bundle containing Error Prone, NullAway, and JSpecify behind the same deterministic JSON contract. M2 adds a conservative tool-supplied fix loop, and M3 adds deterministic Java-project generation plus portable agent-skill installation.
 
 The repository targets **JDK 25 LTS**. Full checks require JDK 25 so compiler/analyzer behavior does not silently vary across Java releases. `--core-only` remains available for bootstrap/debugging. CI runs on Temurin 25.
 
@@ -16,7 +16,7 @@ Build the runnable JAR and prepare the pinned M1 analyzer bundle:
 
 ```bash
 ./scripts/build.sh
-gradle prepareAnalyzers
+./gradlew --no-daemon prepareAnalyzers
 ```
 
 `prepareAnalyzers` materializes the pinned analyzer runtime into `build/analyzers/`, next to `build/strictjava.jar` where the CLI discovers it automatically.
@@ -58,6 +58,22 @@ A bare path is equivalent to a full `check` and therefore requires the analyzer 
 ```bash
 java -jar build/strictjava.jar path/to/project
 ```
+
+Generate a strict Java 25 project:
+
+```bash
+java -jar build/strictjava.jar new hello-java
+```
+
+Generated projects include the official Gradle 9.8.0 wrapper with the published distribution checksum, strict dependency locking and SHA-256 verification, JSpecify, checksum-pinned google-java-format 1.36.1, dependency-free starter tests, Docker packaging, reusable GitHub Actions CI, pre-commit configuration, and agent guidance.
+
+Install the embedded strictjava skill for detected Codex and Claude Code installations:
+
+```bash
+java -jar build/strictjava.jar install-skills
+```
+
+The installer is idempotent and refuses to overwrite a locally modified skill.
 
 Print the embedded agent-facing help:
 
@@ -186,17 +202,18 @@ Run the core acceptance suite:
 ./scripts/test.sh
 ```
 
-Prepare analyzers and run the full M1/M2 suites on JDK 25:
+Prepare analyzers and run the full M1/M2/M3 suites on JDK 25:
 
 ```bash
-gradle prepareAnalyzers
+./gradlew --no-daemon prepareAnalyzers
 ./scripts/test-m1.sh
 ./scripts/test-m2.sh
+./scripts/test-m3.sh
 ```
 
-The suites cover compiler failures/warnings, exact ordered handwritten rules, capability boundaries, classpaths, native/JVM escape hatches, Java 25 `main` semantics, NullAway/JSpecify failures, selected Error Prone ownership/result checks, deterministic repeated output, analyzer auto-discovery, deterministic fixes, blocked unfixable diagnostics, pass limits, and self-dogfooding.
+The suites cover compiler failures/warnings, exact ordered handwritten rules, capability boundaries, classpaths, native/JVM escape hatches, Java 25 `main` semantics, NullAway/JSpecify failures, selected Error Prone ownership/result checks, deterministic repeated output, analyzer auto-discovery, deterministic fixes, blocked unfixable diagnostics, pass limits, deterministic project generation, wrapper/checksum enforcement, generated build/test/format/strictjava/Docker gates, and skill installation.
 
-The build targets Gradle `9.8.0` in CI. A Gradle wrapper remains intentionally deferred to M3 together with generated-project support.
+The repository itself now carries the official Gradle `9.8.0` wrapper. Its wrapper JAR and distribution checksums are the values published by Gradle.
 
 ## Roadmap
 
@@ -217,11 +234,18 @@ The build targets Gradle `9.8.0` in CI. A Gradle wrapper remains intentionally d
   - one checker batch per pass, eliminating cross-check overlap
   - full re-check after every successful pass with rollback on non-progress
   - clean / blocked / iteration-limit terminal states
-- **M3 — generated project:** planned
-  - `strictjava new NAME`
-  - Gradle wrapper and dependency locking/verification
-  - formatting, tests, Docker and reusable CI
-  - agent-skill installation
+- **M3 — generated project:** implemented
+  - deterministic `strictjava new NAME` with staging/rollback and name validation
+  - official Gradle 9.8.0 wrapper with wrapper/distribution checksum validation
+  - strict dependency locking and SHA-256 verification metadata
+  - checksum-pinned google-java-format, dependency-free starter tests, Docker and reusable CI
+  - pre-commit/commit helper and embedded Codex/Claude skill installation
+### M3 generated-project reproducibility
+
+Generated projects deliberately keep their Gradle graph small. JSpecify `1.0.0` is the only Gradle dependency; its artifact SHA-256 is committed in `gradle/verification-metadata.xml`, metadata verification is disabled so repository metadata does not expand the trusted surface, and strict locking covers all four compile/runtime classpaths. The standalone google-java-format `1.36.1` all-deps artifact is downloaded separately and checked against its published GitHub SHA-256 before execution.
+
+The generated workflow is both event-driven and reusable via `workflow_call`. It validates lock stability, formatting, tests, strictjava, and a Docker image built from the already-created Gradle application distribution.
+
 - **M4 — property and architecture checks:** planned
   - property-test integration with an AI-compatible license
   - optional ArchUnit-based architecture constraints

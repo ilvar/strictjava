@@ -1,12 +1,18 @@
-.PHONY: build test check clean
+.PHONY: build analyzers test check clean
 
 build:
 	./scripts/build.sh
 
-test:
-	./scripts/test.sh
+analyzers:
+	./gradlew --no-daemon prepareAnalyzers
 
-check: build
+test: build analyzers
+	./scripts/test.sh
+	./scripts/test-m1.sh
+	./scripts/test-m2.sh
+	./scripts/test-m3.sh
+
+check: build analyzers
 	java -jar build/strictjava.jar check .
 
 clean:

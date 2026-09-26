@@ -58,15 +58,30 @@ M2 is implemented and must remain more conservative than IDE quick-fixes.
 - Stop with an explicit `clean`, `blocked`, or `iteration_limit` status.
 - NullAway/JSpecify diagnostics are not automatically fixed in M2.
 
+## Generated-project policy
+
+M3 project generation is part of the public behavior.
+
+- `strictjava new NAME` must be deterministic for identical inputs.
+- Generate into a staging directory and never partially overwrite an existing destination.
+- Keep the official Gradle wrapper binary unmodified and pin both the wrapper JAR provenance and distribution SHA-256.
+- Generated dependency locking is strict; generated dependency verification is strict for artifacts.
+- Keep generated build dependencies minimal. JSpecify is currently the only Gradle dependency.
+- Formatter downloads are outside Gradle dependency resolution and therefore must have an explicit published SHA-256 check.
+- Generated CI must remain reusable with `workflow_call` and must compile the application distribution only once before the Docker artifact stage.
+- Embedded skills install idempotently for detected Codex/Claude installations and must refuse to overwrite modified copies.
+- Every generated file belongs in an M3 acceptance fixture/gate; avoid untested scaffold decoration.
+
 ## Validation
 
 Current authoritative validation:
 
 ```bash
 ./scripts/test.sh
-gradle prepareAnalyzers
+./gradlew --no-daemon prepareAnalyzers
 ./scripts/test-m1.sh
 ./scripts/test-m2.sh
+./scripts/test-m3.sh
 ```
 
 The project target is JDK 25 LTS. Full analyzer checks require JDK 25; `--core-only` is bootstrap/debug mode. Keep the Gradle toolchain, runtime check, and CI Java version synchronized.

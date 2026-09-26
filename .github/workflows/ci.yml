@@ -21,15 +21,19 @@ jobs:
           gradle-version: '9.8.0'
           cache-provider: basic
       - name: Prepare pinned analyzers
-        run: gradle --no-daemon prepareAnalyzers
+        run: ./gradlew --no-daemon prepareAnalyzers
       - name: Core acceptance tests
         run: ./scripts/test.sh
       - name: M1 analyzer acceptance tests
         run: ./scripts/test-m1.sh
       - name: M2 conservative fix-loop tests
         run: ./scripts/test-m2.sh
+      - name: M3 generated-project and skill tests
+        run: ./scripts/test-m3.sh
       - name: Verify help
         run: |
           java -jar build/strictjava.jar --help | grep -q 'nullaway::NullAway'
           java -jar build/strictjava.jar --help | grep -q 'strictjava::no_catchall_switch'
           java -jar build/strictjava.jar --help | grep -q 'strictjava fix'
+          java -jar build/strictjava.jar --help | grep -q 'strictjava new'
+          java -jar build/strictjava.jar --help | grep -q 'install-skills'
