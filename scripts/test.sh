@@ -131,6 +131,25 @@ codes = [item.get("code") for item in report["diagnostics"]]
 assert codes == ["strictjava::no_mutable_global"], codes
 PY
 
+main_good_json=$(java -jar "$JAR" check "$ROOT/fixtures/main-boundary-good")
+python3 - "$main_good_json" <<'PY'
+import json, sys
+report = json.loads(sys.argv[1])
+assert report["ok"] is True, report
+PY
+
+set +e
+main_bad_json=$(java -jar "$JAR" check "$ROOT/fixtures/main-boundary-bad")
+main_bad_status=$?
+set -e
+[[ "$main_bad_status" -eq 1 ]]
+python3 - "$main_bad_json" <<'PY'
+import json, sys
+report = json.loads(sys.argv[1])
+codes = [item.get("code") for item in report["diagnostics"]]
+assert codes == ["strictjava::no_system_exit"], codes
+PY
+
 classpath_classes="$ROOT/build/test-classpath/classes"
 classpath_jar="$ROOT/build/test-classpath/examplelib.jar"
 rm -rf "$ROOT/build/test-classpath"

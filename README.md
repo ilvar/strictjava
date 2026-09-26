@@ -82,7 +82,7 @@ Diagnostics are deterministically ordered by `(file, line, column, code, message
 | `strictjava::no_suppress_warnings` | `@SuppressWarnings` | resolve the diagnostic or create a narrowly designed future policy exemption |
 | `strictjava::no_mutable_global` | static object/mutable state | explicitly owned/injected state; only compile-time constants stay global |
 | `strictjava::no_optional_get` | `Optional.get()` | explicit empty-case handling |
-| `strictjava::no_system_exit` | `System.exit()` outside `main` | return/throw to the top-level boundary |
+| `strictjava::no_system_exit` | `System.exit()` outside a Java 25 candidate `main` method | return/throw to the top-level boundary |
 | `strictjava::no_runtime_halt` | `Runtime.exit()` / `Runtime.halt()` | ordinary return/exception control flow |
 | `strictjava::no_native_code` | `native` methods and `System`/`Runtime` native-library loading | keep implementation inside the JVM |
 | `strictjava::no_reflection` | selected reflection APIs outside a capability source file | ordinary typed APIs or an explicit capability boundary |
@@ -112,6 +112,8 @@ final class ConfigFile {
 ```
 
 The exact marker must appear within the first 20 source lines. Reflection is also permitted only inside such a boundary. `System.exit()` and `Runtime.exit()`/`halt()` are not capability exemptions: their dedicated rules still apply.
+
+For Java 25, `strictjava` follows the launcher definition of a candidate `main`: it may be static or instance, accepts either no parameters or one `String[]`/`String...` parameter, returns `void`, and is not private. `System.exit()` is permitted only inside such a method.
 
 ## Why compiler APIs first
 

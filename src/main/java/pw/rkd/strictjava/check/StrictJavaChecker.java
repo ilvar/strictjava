@@ -32,7 +32,9 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticCollector;
@@ -391,12 +393,40 @@ public final class StrictJavaChecker {
             TreePath path = getCurrentPath();
             while (path != null) {
                 if (path.getLeaf() instanceof MethodTree method) {
-                    return method.getName().contentEquals("main")
-                            && method.getModifiers().getFlags().contains(Modifier.STATIC);
+                    return isCandidateMain(path, method);
                 }
                 path = path.getParentPath();
             }
             return false;
+        }
+
+        private boolean isCandidateMain(TreePath path, MethodTree method) {
+            if (!method.getName().contentEquals("main")
+                    || method.getModifiers().getFlags().contains(Modifier.PRIVATE)) {
+                return false;
+            }
+            Element element = trees.getElement(path);
+            if (!(element instanceof ExecutableElement executable)
+                    || executable.getReturnType().getKind() != TypeKind.VOID) {
+                return false;
+            }
+            if (executable.getParameters().isEmpty()) {
+                return true;
+            }
+            if (executable.getParameters().size() != 1) {
+                return false;
+            }
+            TypeMirror parameter = executable.getParameters().getFirst().asType();
+            if (!(parameter instanceof ArrayType arrayType)) {
+                return false;
+            }
+            TypeMirror component = arrayType.getComponentType();
+            if (!(component instanceof DeclaredType declaredType)) {
+                return false;
+            }
+            Element componentElement = declaredType.asElement();
+            return componentElement instanceof TypeElement typeElement
+                    && typeElement.getQualifiedName().contentEquals("java.lang.String");
         }
 
         private boolean hasCapabilityMarker(String source) {
