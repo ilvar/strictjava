@@ -1,6 +1,8 @@
 package pw.rkd.strictjava;
 
+import java.util.List;
 import java.util.StringJoiner;
+import pw.rkd.strictjava.model.FixResult;
 import pw.rkd.strictjava.model.Report;
 import pw.rkd.strictjava.model.SourcePosition;
 import pw.rkd.strictjava.model.SourceSpan;
@@ -20,6 +22,34 @@ final class Json {
                 + "\"warning_count\":" + report.warningCount() + ","
                 + "\"diagnostics\":" + diagnostics
                 + "}";
+    }
+
+    static String fixResult(FixResult result) {
+        String base = report(result.report());
+        return base.substring(0, base.length() - 1)
+                + ",\"fix\":"
+                + fix(result)
+                + "}";
+    }
+
+    private static String fix(FixResult result) {
+        StringBuilder out = new StringBuilder("{");
+        out.append("\"status\":").append(quote(result.status()));
+        out.append(",\"passes\":").append(result.passes());
+        out.append(",\"changed_files\":").append(strings(result.changedFiles()));
+        out.append(",\"applied_checks\":").append(strings(result.appliedChecks()));
+        if (result.blockedReason() != null) {
+            out.append(",\"blocked_reason\":").append(quote(result.blockedReason()));
+        }
+        return out.append('}').toString();
+    }
+
+    private static String strings(List<String> values) {
+        StringJoiner out = new StringJoiner(",", "[", "]");
+        for (String value : values) {
+            out.add(quote(value));
+        }
+        return out.toString();
     }
 
     static String operationalError(String message) {

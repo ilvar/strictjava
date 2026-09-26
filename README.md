@@ -6,7 +6,7 @@ It is not a new language, parser, compiler fork, or standard library. It uses th
 
 ## Status
 
-Early implementation. **M0 and M1 are implemented.** The core checker remains dependency-free; the full M1 profile runs a pinned external analyzer bundle containing Error Prone, NullAway, and JSpecify behind the same deterministic JSON contract. Safe fixes, project generation, and agent-skill installation remain roadmap work.
+Early implementation. **M0, M1, and M2 are implemented.** The core checker remains dependency-free; the full profile runs a pinned external analyzer bundle containing Error Prone, NullAway, and JSpecify behind the same deterministic JSON contract. M2 adds a conservative tool-supplied fix loop. Project generation and agent-skill installation remain roadmap work.
 
 The repository targets **JDK 25 LTS**. Full checks require JDK 25 so compiler/analyzer behavior does not silently vary across Java releases. `--core-only` remains available for bootstrap/debugging. CI runs on Temurin 25.
 
@@ -25,6 +25,18 @@ Check a project:
 
 ```bash
 java -jar build/strictjava.jar check path/to/project
+```
+
+Apply conservative tool-supplied fixes, re-checking after every successful pass:
+
+```bash
+java -jar build/strictjava.jar fix path/to/project
+```
+
+Limit successful fix passes explicitly when needed:
+
+```bash
+java -jar build/strictjava.jar fix --max-passes 3 path/to/project
 ```
 
 For projects with external dependencies, pass the compile classpath explicitly:
@@ -53,7 +65,7 @@ Print the embedded agent-facing help:
 java -jar build/strictjava.jar --help
 ```
 
-Operational checks emit exactly one JSON document to stdout and use exit status `0` when clean, `1` when diagnostics remain, and `2` for invocation or operational failures.
+Operational commands emit exactly one JSON document to stdout and use exit status `0` when clean, `1` when diagnostics remain (including blocked/limited fixes), and `2` for invocation or operational failures. `fix` adds a `fix` object containing `status`, successful pass count, changed files, applied checker codes, and an optional blocked reason; ordinary `check` output is unchanged.
 
 ## Diagnostic contract
 
@@ -122,6 +134,21 @@ The pinned analyzer versions are:
 
 NullAway runs with `OnlyNullMarked=true`, JSpecify mode, optional-emptiness checking, and explicit null-marking enforcement. Analyzer diagnostics are normalized into the same report and stable ordering as compiler and handwritten `strictjava::` diagnostics.
 
+### M2 conservative fix loop
+
+`strictjava fix` does not invent edits from diagnostic text. It delegates only to Error Prone's own suggested replacements, and only for this allowlist:
+
+- `errorprone::ReturnValueIgnored`
+- `errorprone::FutureReturnValueIgnored`
+- `errorprone::MustBeClosedChecker`
+- `errorprone::StreamResourceLeak`
+
+Each checker is run alone against two independent temporary copies of the current source tree. A proposal is eligible only when both runs produce byte-identical source results. strictjava then verifies every changed file is an existing source below the requested root, applies the batch atomically per file, and runs the complete M1 checker again.
+
+A pass is kept only when the target diagnostic count decreases, total errors decrease, and no new diagnostic code appears. Otherwise the source is rolled back. Cross-checker overlap is avoided by applying at most one checker batch per pass in a fixed order. The loop stops as `clean`, `blocked`, or `iteration_limit`; the default cap is 8 successful passes and `--max-passes` accepts 1–100.
+
+NullAway/JSpecify diagnostics are intentionally not auto-fixed in M2 because no fix is synthesized from their prose.
+
 ### Capability source files
 
 Effects that touch the filesystem, process execution, environment/system properties, or selected network APIs must be isolated in an explicitly marked source file:
@@ -159,14 +186,15 @@ Run the core acceptance suite:
 ./scripts/test.sh
 ```
 
-Prepare analyzers and run the full M1 suite on JDK 25:
+Prepare analyzers and run the full M1/M2 suites on JDK 25:
 
 ```bash
 gradle prepareAnalyzers
 ./scripts/test-m1.sh
+./scripts/test-m2.sh
 ```
 
-The suites cover compiler failures/warnings, exact ordered handwritten rules, capability boundaries, classpaths, native/JVM escape hatches, Java 25 `main` semantics, NullAway/JSpecify failures, selected Error Prone ownership/result checks, deterministic repeated output, analyzer auto-discovery, and self-dogfooding.
+The suites cover compiler failures/warnings, exact ordered handwritten rules, capability boundaries, classpaths, native/JVM escape hatches, Java 25 `main` semantics, NullAway/JSpecify failures, selected Error Prone ownership/result checks, deterministic repeated output, analyzer auto-discovery, deterministic fixes, blocked unfixable diagnostics, pass limits, and self-dogfooding.
 
 The build targets Gradle `9.8.0` in CI. A Gradle wrapper remains intentionally deferred to M3 together with generated-project support.
 
@@ -183,10 +211,12 @@ The build targets Gradle `9.8.0` in CI. A Gradle wrapper remains intentionally d
   - curated Error Prone result/resource checks
   - capability boundaries for core JDK filesystem/network/process/environment/reflection APIs
   - explicit dependency classpaths and deterministic analyzer normalization
-- **M2 — conservative fix loop:** planned
-  - only allowlisted, tool-supplied fixes
-  - deterministic non-overlapping edits
-  - re-check after every pass
+- **M2 — conservative fix loop:** implemented
+  - only allowlisted Error Prone tool-supplied fixes
+  - each proposal reproduced independently before application
+  - one checker batch per pass, eliminating cross-check overlap
+  - full re-check after every successful pass with rollback on non-progress
+  - clean / blocked / iteration-limit terminal states
 - **M3 — generated project:** planned
   - `strictjava new NAME`
   - Gradle wrapper and dependency locking/verification

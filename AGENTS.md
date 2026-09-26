@@ -45,14 +45,18 @@ Capability effects use the exact `// strictjava: capability` source-file marker 
 
 ## Fix policy
 
-M2 fixes must be more conservative than IDE quick-fixes:
+M2 is implemented and must remain more conservative than IDE quick-fixes.
 
-- apply only explicit allowlisted tool-provided replacements;
-- never synthesize source edits from diagnostic prose;
-- never edit outside the requested project root;
-- reject overlapping edits unless the deterministic policy selects one unambiguously;
-- re-run the complete checker after every edit pass;
-- stop on clean, blocked, unchanged, or iteration cap.
+- The fix allowlist is exactly `ReturnValueIgnored`, `FutureReturnValueIgnored`, `MustBeClosedChecker`, and `StreamResourceLeak` unless an explicit profile change adds another checker with fixtures.
+- Use only Error Prone's tool-supplied `-XepPatchChecks` replacements. Never synthesize source edits from diagnostic prose.
+- Run one checker at a time in a fixed order. This avoids cross-checker overlap in a single pass.
+- Reproduce every candidate fix in two independent temporary source trees and require byte-identical outputs before touching the requested project.
+- Never edit a path outside the requested project root and never create/delete source files during a fix.
+- Verify originals are unchanged before applying. Multi-file application must restore already-written files if a later write fails.
+- Re-run the complete M1 checker after every successful proposal.
+- Keep a proposal only if its target diagnostic count decreases, total errors decrease, and it introduces no new diagnostic code; otherwise roll it back.
+- Stop with an explicit `clean`, `blocked`, or `iteration_limit` status.
+- NullAway/JSpecify diagnostics are not automatically fixed in M2.
 
 ## Validation
 
@@ -60,6 +64,9 @@ Current authoritative validation:
 
 ```bash
 ./scripts/test.sh
+gradle prepareAnalyzers
+./scripts/test-m1.sh
+./scripts/test-m2.sh
 ```
 
 The project target is JDK 25 LTS. Full analyzer checks require JDK 25; `--core-only` is bootstrap/debug mode. Keep the Gradle toolchain, runtime check, and CI Java version synchronized.
