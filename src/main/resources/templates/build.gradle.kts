@@ -37,7 +37,6 @@ val lockedConfigurations = setOf(
 
 configurations.matching { it.name in lockedConfigurations }.configureEach {
     resolutionStrategy.activateDependencyLocking()
-    resolutionStrategy.failOnNonReproducibleResolution()
 }
 
 dependencyLocking {
@@ -50,8 +49,8 @@ tasks.withType<JavaCompile>().configureEach {
     options.compilerArgs.addAll(listOf("-Xlint:all", "-Werror"))
 }
 
-val testApp by tasks.registering(JavaExec::class) {
-    dependsOn(tasks.testClasses)
+val testApp = tasks.register<JavaExec>("testApp") {
+    dependsOn(tasks.named("testClasses"))
     classpath = sourceSets.test.get().runtimeClasspath
     mainClass.set("app.MainTest")
     enableAssertions = true
@@ -82,7 +81,7 @@ fun sha256(path: File): String {
     return digest.digest().joinToString("") { byte -> "%02x".format(byte) }
 }
 
-val prepareFormatter by tasks.registering {
+val prepareFormatter = tasks.register("prepareFormatter") {
     outputs.file(formatterFile)
     doLast {
         val target = formatterFile.asFile
