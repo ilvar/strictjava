@@ -100,6 +100,21 @@ assert report["ok"] is True, report
 assert report["diagnostics"] == [], report
 PY
 
+set +e
+native_json=$(java -jar "$JAR" check "$ROOT/fixtures/native-code")
+native_status=$?
+set -e
+[[ "$native_status" -eq 1 ]]
+python3 - "$native_json" <<'PY'
+import json, sys
+report = json.loads(sys.argv[1])
+codes = [item.get("code") for item in report["diagnostics"]]
+assert codes == [
+    "strictjava::no_native_code",
+    "strictjava::no_native_code",
+], codes
+PY
+
 classpath_classes="$ROOT/build/test-classpath/classes"
 classpath_jar="$ROOT/build/test-classpath/examplelib.jar"
 rm -rf "$ROOT/build/test-classpath"

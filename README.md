@@ -84,6 +84,7 @@ Diagnostics are deterministically ordered by `(file, line, column, code, message
 | `strictjava::no_optional_get` | `Optional.get()` | explicit empty-case handling |
 | `strictjava::no_system_exit` | `System.exit()` outside `main` | return/throw to the top-level boundary |
 | `strictjava::no_runtime_halt` | `Runtime.exit()` / `Runtime.halt()` | ordinary return/exception control flow |
+| `strictjava::no_native_code` | `native` methods and `System`/`Runtime` native-library loading | keep implementation inside the JVM |
 | `strictjava::no_reflection` | selected reflection APIs outside a capability source file | ordinary typed APIs or an explicit capability boundary |
 | `strictjava::capability_boundary` | filesystem/process/environment/network effects in ordinary source files | isolate effects in a marked capability source file |
 | `strictjava::no_catchall_switch` | `default` on enum/sealed switches | enumerate all variants |

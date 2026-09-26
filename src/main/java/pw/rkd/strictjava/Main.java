@@ -30,6 +30,7 @@ public final class Main {
               strictjava::no_optional_get
               strictjava::no_system_exit
               strictjava::no_runtime_halt
+              strictjava::no_native_code
               strictjava::no_reflection
               strictjava::capability_boundary
               strictjava::no_catchall_switch

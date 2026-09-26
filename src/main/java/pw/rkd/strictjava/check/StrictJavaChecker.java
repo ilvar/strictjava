@@ -281,6 +281,17 @@ public final class StrictJavaChecker {
         }
 
         @Override
+        public Void visitMethod(MethodTree node, Void unused) {
+            if (node.getModifiers().getFlags().contains(Modifier.NATIVE)) {
+                add(
+                        "strictjava::no_native_code",
+                        "native methods are not allowed; keep implementation inside the JVM",
+                        node);
+            }
+            return super.visitMethod(node, unused);
+        }
+
+        @Override
         public Void visitNewClass(NewClassTree node, Void unused) {
             Element element = trees.getElement(getCurrentPath());
             if (element instanceof ExecutableElement executable) {
@@ -317,6 +328,10 @@ public final class StrictJavaChecker {
                 }
                 if (owner.equals("java.lang.Runtime") && (method.equals("halt") || method.equals("exit"))) {
                     add("strictjava::no_runtime_halt", "Runtime.exit()/halt() are not allowed", node);
+                }
+                if ((owner.equals("java.lang.System") || owner.equals("java.lang.Runtime"))
+                        && (method.equals("load") || method.equals("loadLibrary"))) {
+                    add("strictjava::no_native_code", "loading native libraries is not allowed", node);
                 }
                 if (isReflection(owner, method) && !capabilityBoundary) {
                     add("strictjava::no_reflection", "reflection is allowed only inside an explicit capability boundary", node);
