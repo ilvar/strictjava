@@ -115,6 +115,18 @@ assert codes == [
 ], codes
 PY
 
+set +e
+interface_json=$(java -jar "$JAR" check "$ROOT/fixtures/mutable-interface")
+interface_status=$?
+set -e
+[[ "$interface_status" -eq 1 ]]
+python3 - "$interface_json" <<'PY'
+import json, sys
+report = json.loads(sys.argv[1])
+codes = [item.get("code") for item in report["diagnostics"]]
+assert codes == ["strictjava::no_mutable_global"], codes
+PY
+
 classpath_classes="$ROOT/build/test-classpath/classes"
 classpath_jar="$ROOT/build/test-classpath/examplelib.jar"
 rm -rf "$ROOT/build/test-classpath"

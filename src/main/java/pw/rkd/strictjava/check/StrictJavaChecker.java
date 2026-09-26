@@ -117,7 +117,11 @@ public final class StrictJavaChecker {
     }
 
     private boolean isTypeKind(Tree.Kind kind) {
-        return kind == Tree.Kind.CLASS || kind == Tree.Kind.ENUM || kind == Tree.Kind.RECORD;
+        return kind == Tree.Kind.CLASS
+                || kind == Tree.Kind.ENUM
+                || kind == Tree.Kind.RECORD
+                || kind == Tree.Kind.INTERFACE
+                || kind == Tree.Kind.ANNOTATION_TYPE;
     }
 
     private Map<Path, String> readSources(List<Path> sources) throws IOException {
@@ -266,9 +270,9 @@ public final class StrictJavaChecker {
         public Void visitVariable(VariableTree node, Void unused) {
             TreePath parent = getCurrentPath().getParentPath();
             if (parent != null && isTypeKind(parent.getLeaf().getKind())) {
-                Set<Modifier> flags = node.getModifiers().getFlags();
+                Element element = trees.getElement(getCurrentPath());
+                Set<Modifier> flags = element != null ? element.getModifiers() : node.getModifiers().getFlags();
                 if (flags.contains(Modifier.STATIC)) {
-                    Element element = trees.getElement(getCurrentPath());
                     boolean enumConstant = element != null && element.getKind() == ElementKind.ENUM_CONSTANT;
                     boolean compileTimeConstant = element instanceof VariableElement variable
                             && variable.getConstantValue() != null;
