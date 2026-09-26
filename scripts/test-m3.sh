@@ -76,7 +76,7 @@ PY
 
   cp gradle.lockfile "$WORK/gradle.lockfile.before"
   ./gradlew --no-daemon dependencies --write-locks
-  cmp "$WORK/gradle.lockfile.before" gradle.lockfile
+  diff -u "$WORK/gradle.lockfile.before" gradle.lockfile
 
   CLASSPATH=$(./gradlew -q strictjavaClasspath)
   check_json=$(java -jar "$JAR" check --classpath "$CLASSPATH" .)

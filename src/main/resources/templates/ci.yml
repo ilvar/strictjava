@@ -34,7 +34,7 @@ jobs:
           ./gradlew --version
           cp gradle.lockfile /tmp/gradle.lockfile
           ./gradlew --no-daemon dependencies --write-locks
-          cmp /tmp/gradle.lockfile gradle.lockfile
+          diff -u /tmp/gradle.lockfile gradle.lockfile
           git diff --exit-code -- gradle.lockfile
 
       - name: Format, test, and build distribution
