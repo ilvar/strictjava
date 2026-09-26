@@ -4,6 +4,7 @@ import org.gradle.api.artifacts.dsl.LockMode
 import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.api.tasks.testing.Test
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 
 plugins {
@@ -56,7 +57,8 @@ val testApp = tasks.register<JavaExec>("testApp") {
     enableAssertions = true
 }
 
-tasks.named("test") {
+tasks.named<Test>("test") {
+    failOnNoDiscoveredTests.set(false)
     dependsOn(testApp)
 }
 
