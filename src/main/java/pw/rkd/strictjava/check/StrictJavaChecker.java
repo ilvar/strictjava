@@ -329,6 +329,7 @@ public final class StrictJavaChecker {
             }
         }
 
+
         private boolean insideMainMethod() {
             TreePath path = getCurrentPath();
             while (path != null) {
